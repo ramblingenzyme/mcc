@@ -8,8 +8,9 @@
 
 WHITE [ \t]+
 NAME [a-z]+
-STDHEADER <[a-z\.]+>
-USRHEADER \"[a-z\.]+\"
+STDHEADER <[a-zA-Z\.]+>
+FUNCNAME [a-zA-Z_]+\([a-zA-Z\*,\s]\)
+QSTRING  \"([^"]*)\" 
 
 %%
 PROGRAM		return START;
@@ -21,29 +22,26 @@ ENDFILE		return ENDFILE;
 MAIN		return STARTMAIN;
 ENDMAIN		return ENDMAIN;
 
-INCLUDE		return INCLUDE;
-ENDINCLUDE	return ENDINCLUDE;
+include		return INCLUDE;
 
-CLASS		return CLASS;
-ENDCLASS	return ENDCLASS;
+class		return CLASS;
+endclass	return ENDCLASS;
 
-PUBLIC		return PUBLIC;
-ENDPUBLIC	return ENDPUBLIC;
-PRIVATE		return PRIVATE;
-ENDPRIVATE	return ENDPRIVATE;
+"public:"	return PUBLIC;
+"private:"	return PRIVATE;
 
-FUNCTION	return FUNCTION;
-ENDFUNCTION	return ENDFUNCTION;
-DATA		return DATA;
+function	return FUNCTION;
+data		return DATA;
 
 ","			return COMMA;
 "("			return LPAR;
 ")"			return RPAR;
 
 
-{NAME}		{ yylval.str_val = strdup(yytext); return IDENTIFIER; }
 {STDHEADER}	{ yylval.str_val = strdup(yytext); return STDHEADER; }
-{USRHEADER}	{ yylval.str_val = strdup(yytext); return USRHEADER; }
+{FUNCNAME}	{ yylval.str_val = strdup(yytext); return FUNCNAME;  }
+{QSTRING}	{ yylval.str_val = strdup(yytext); return QSTRING;   }
+{NAME}		{ yylval.str_val = strdup(yytext); return IDENTIFIER;}
 {WHITE}		;
 \n			{ yylineno++; }
 .			{ printf("Unrecognized token%s!\n", yytext); exit(1); }

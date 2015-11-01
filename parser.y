@@ -2,20 +2,29 @@
 	#include "parser.h"
 	#include <stdio.h>
 	#include <string.h>
+	#include <ctype.h>
 
 	extern FILE *yyin;
 	extern int yylineno;
 	extern char* yytext;
 
 	char namespace[40];
-	char *filename[2];
+	char *filename[3];
 	FILE *source, *header;
+	int indentlevel = 0;
 
 	int yylex();
 	int yyerror(const char *p) {
 		printf("Error: %s\n", p);
 		printf("Near %s\n", yytext);
+		printf("Line: %d\n", yylineno);
 	}
+
+	int indent_level(FILE *output) {
+		for (int i = 0; i < indentlevel; i++)
+			fprintf(output, "\t");
+	}	
+
 %}
 
 %union {
@@ -23,15 +32,14 @@
 	char* str_val;
 };
 
-%token <ival> START END STARTFILE ENDFILE CLASS ENDCLASS
-%token <ival> STARTMAIN ENDMAIN
-%token <ival> PUBLIC ENDPUBLIC PRIVATE ENDPRIVATE INCLUDE ENDINCLUDE
-%token <ival> DATA ENDDATA FUNCTION ENDFUNCTION
+%token <ival> START END STARTFILE ENDFILE
+%token <ival> STARTMAIN ENDMAIN CLASS ENDCLASS
+%token <ival> PUBLIC PRIVATE INCLUDE NAMESPACES
+%token <ival> DATA FUNCTION 
 
-%token <ival> LPAR RPAR COMMA SEMICOLON LBRAC RBRAC
-%token <str_val> IDENTIFIER STDHEADER USRHEADER
-
-
+%token <ival> LPAR RPAR COMMA
+%token <str_val> IDENTIFIER STDHEADER USRHEADER QSTRING
+%token <str_val> FUNCNAME
 
 %%
 
@@ -41,21 +49,28 @@ files:
 	files file
 	| file;
 
-file: STARTFILE IDENTIFIER					{
-												filename[0] = strdup($2);
-												filename[1] = strdup($2);
+file: STARTFILE IDENTIFIER 				{
+												for (int i = 0; i < 3; i++)
+													filename[i] = strdup($2);
+
 												strcat(filename[0], ".h");
 												header = fopen(filename[0], "w");
 
 												strcat(filename[1], ".cpp");
 												source = fopen(filename[1], "w");
+
+												for (int i = 0; i < strlen(filename[2]); i++)
+													filename[2][i] = toupper(filename[2][i]);
+
+												strcat(filename[2], "_H");
+												fprintf(header, "#ifndef %s\n#define %s\n", filename[2], filename[2]);
 											}
 
 	includes								{
 		  										fprintf(source, "#include \"%s\"\n\n", filename[0]);
 		  									}
-	namespaces
 	contents ENDFILE						{
+												fprintf(header, "#endif");
 												fclose(source);
 												fclose(header);
 											}
@@ -67,32 +82,49 @@ file: STARTFILE IDENTIFIER					{
 												fclose(header);
 											};
 
+/* include headers */
 includes: INCLUDE includelist;
 
 includelist: 
-	includelist COMMA header
-	| header;
+	includelist COMMA include
+	| include;
 
-header:
+include:
 	STDHEADER								{ fprintf(header, "#include %s\n", $1); }
-	| USRHEADER								{ fprintf(header, "#include %s\n", $1); };
+	| QSTRING								{ fprintf(header, "#include %s\n", $1); };
 
-namespaces: NAMESPACES namespacelist;
+contents:
+	contents content
+	| content
+	
+content: 
+	/* class */
+	function
+	| data;
 
-namespacelist:
-	namespacelist COMMA IDENTIFIER			{ fprintf(source, "using namespace %s;\n", $3); }
-	| IDENTIFIER							{ fprintf(source, "using namespace %s;\n", $1); };
+/* class: */
+	/* CLASS IDENTIFIER						{ */
+	/* 											namespace = $2; */
+	/* 											strcat(namespace, "::"); */
+	/* 											indentlevel += 1; */
+	/* 										} */
+	/* classmembers ENDCLASS					{ */
+	/* 											strcpy(namespace, ""); */
+	/* 											indentlevel -= 1; */
+	/* 										} */
 
-contents: 
+function: FUNCTION IDENTIFIER FUNCNAME 	{ 
+												indent_level(header);
+												fprintf(header, "%s %s;\n", $2, $3);
+												indent_level(source);
+												fprintf(source, "%s %s%s", $2, namespace, $3);
+												fprintf(source, "{\n\n}");
+											};
 
-/*classes:
-	classes class
-	| class;
-
-class:
-	CLASS IDENTIFIER						{ namespace = $2 }
-	classmembers ENDCLASS;
-*/
+data: DATA QSTRING 						{
+												indent_level(header);
+												fprintf(header, "%s", $2);
+											};
 
 %%
 
