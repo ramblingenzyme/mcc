@@ -8,10 +8,11 @@
 	extern int yylineno;
 	extern char* yytext;
 
-	char namespace[40];
-	char *filename[3];
+	char namespace[16];
+	char filename[3][32], *buffer;
 	FILE *source, *header;
 	int indentlevel = 0;
+	int in_class = 0;
 
 	int yylex();
 	int yyerror(const char *p) {
@@ -49,9 +50,10 @@ files:
 	files file
 	| file;
 
-file: STARTFILE IDENTIFIER 				{
+file: 
+	STARTFILE IDENTIFIER 				{
 												for (int i = 0; i < 3; i++)
-													filename[i] = strdup($2);
+													strcpy(filename[i], $2);
 
 												strcat(filename[0], ".h");
 												header = fopen(filename[0], "w");
@@ -63,7 +65,7 @@ file: STARTFILE IDENTIFIER 				{
 													filename[2][i] = toupper(filename[2][i]);
 
 												strcat(filename[2], "_H");
-												fprintf(header, "#ifndef %s\n#define %s\n", filename[2], filename[2]);
+												fprintf(header, "#ifndef %s\n#define %s\n\n", filename[2], filename[2]);
 											}
 
 	includes								{
@@ -83,47 +85,97 @@ file: STARTFILE IDENTIFIER 				{
 											};
 
 /* include headers */
-includes: INCLUDE includelist;
+includes:
+	INCLUDE includelist;
 
 includelist: 
 	includelist COMMA include
-	| include;
+	| include								{ fprintf(header, "\n"); };
 
-include:
+include: /* empty */ |
 	STDHEADER								{ fprintf(header, "#include %s\n", $1); }
 	| QSTRING								{ fprintf(header, "#include %s\n", $1); };
 
-contents:
+contents: /* empty */ |
 	contents content
 	| content
 	
 content: 
-	/* class */
+	class
+	| function
+	| data;
+
+class:
+	CLASS IDENTIFIER						{
+												strcpy(namespace, $2);
+												strcat(namespace, "::");
+												indent_level(header);
+												fprintf(header, "class %s {\n", $2);
+												
+												in_class = 1;
+												indentlevel += 1;
+												
+											}
+	classmembers ENDCLASS					{
+												strcpy(namespace, "");
+												indentlevel -= 1;
+											};
+classmembers:
+	| PUBLIC classmembers					{
+												indent_level(header);
+												fprintf(header, "public:");
+												indentlevel += 1;
+											}
+	| PRIVATE classmembers					{
+												indent_level(header);
+												fprintf(header, "private:");
+												indentlevel += 1;
+											}
+	| classmembers classmember
+	| classmember;
+
+classmember: 
 	function
 	| data;
 
-/* class: */
-	/* CLASS IDENTIFIER						{ */
-	/* 											namespace = $2; */
-	/* 											strcat(namespace, "::"); */
-	/* 											indentlevel += 1; */
-	/* 										} */
-	/* classmembers ENDCLASS					{ */
-	/* 											strcpy(namespace, ""); */
-	/* 											indentlevel -= 1; */
-	/* 										} */
-
-function: FUNCTION IDENTIFIER FUNCNAME 	{ 
+function:
+	FUNCTION QSTRING QSTRING				{ 
 												indent_level(header);
-												fprintf(header, "%s %s;\n", $2, $3);
 												indent_level(source);
-												fprintf(source, "%s %s%s", $2, namespace, $3);
-												fprintf(source, "{\n\n}");
+
+												buffer = strdup($2);
+												buffer++[strlen(buffer)] = '\0';
+
+												fprintf(header, "%s ", buffer);
+												fprintf(source, "%s %s", buffer, namespace);
+
+												buffer--[strlen(buffer)] = '0';
+												free(buffer);
+
+												buffer = strdup($3);
+												buffer++[strlen(buffer)] = '\0';
+
+												fprintf(header, "%s;\n", buffer);
+												fprintf(source, "%s {\n\n", buffer);
+												indent_level(source);
+												fprintf(source, "}\n\n");
+
+												buffer--[strlen(buffer)] = '0';
+												free(buffer);
 											};
 
-data: DATA QSTRING 						{
+data: 
+	DATA QSTRING 							{
 												indent_level(header);
-												fprintf(header, "%s", $2);
+												buffer = strdup($2);
+												/* takes the two end characters off */
+												buffer++[strlen(buffer)] = '\0';
+
+												if (in_class) {
+													fprintf(header, "%s\n", buffer);
+												} else { 
+													fprintf(source, "%s\n", buffer);
+												}
 											};
 
 %%

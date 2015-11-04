@@ -7,9 +7,9 @@
 %}
 
 WHITE [ \t]+
-NAME [a-z]+
+NAME [a-zA-Z]+
 STDHEADER <[a-zA-Z\.]+>
-FUNCNAME [a-zA-Z_]+\([a-zA-Z\*,\s]\)
+FUNCNAME [a-zA-Z_]+\([\w,\* ]\)
 QSTRING  \"([^"]*)\" 
 
 %%
