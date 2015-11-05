@@ -5,7 +5,7 @@ This project provides a method of generating a C/C++ project's files by specifiy
 This is achieved through a combination of flex and bison, to create a scanner and parser for the text format.
 Examples will be added eventually, as well as documentation. Hopefully.
 
-#Dependencies
+#DEPENDENCIES
 * flex/lex
 * bison/yacc
 
@@ -14,11 +14,12 @@ using `make all` will create a binary that can be used with the files in the tes
 `mcc project.mcc` will generate the project specified in the file.
 
 #TODO:
-* Header guards | Done
 * Classes
-  * Namespaces
   * constructors/destructors
+* Namespaces
 * Functions
   * better format for them in input files
-* Structs?
-* Enums?
+* Arrays
+* Structs
+* Enums
+* any other suggestions
