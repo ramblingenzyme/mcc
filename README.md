@@ -6,9 +6,11 @@ This is achieved through a combination of flex and bison, to create a scanner an
 Examples will be added eventually, as well as documentation. Hopefully.
 
 TODO:
-* Header guards
+* Header guards | Done
 * Classes
+  * Namespaces
+  * constructors/destructors
 * Functions
-* Constructors/Deconstructor
+  * better format for them in input files
 * Structs?
 * Enums?

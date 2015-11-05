@@ -7,9 +7,8 @@
 %}
 
 WHITE [ \t]+
-NAME [a-zA-Z]+
+NAME [a-zA-Z_\*:&]+
 STDHEADER <[a-zA-Z\.]+>
-FUNCNAME [a-zA-Z_]+\([\w,\* ]\)
 QSTRING  \"([^"]*)\" 
 
 %%
@@ -30,16 +29,18 @@ endclass	return ENDCLASS;
 "public:"	return PUBLIC;
 "private:"	return PRIVATE;
 
+const		return CONST;
+
 function	return FUNCTION;
 data		return DATA;
 
-","			return COMMA;
+
 "("			return LPAR;
 ")"			return RPAR;
+","			return COMMA;
 
 
 {STDHEADER}	{ yylval.str_val = strdup(yytext); return STDHEADER; }
-{FUNCNAME}	{ yylval.str_val = strdup(yytext); return FUNCNAME;  }
 {QSTRING}	{ yylval.str_val = strdup(yytext); return QSTRING;   }
 {NAME}		{ yylval.str_val = strdup(yytext); return IDENTIFIER;}
 {WHITE}		;

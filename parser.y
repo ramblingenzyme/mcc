@@ -35,12 +35,10 @@
 
 %token <ival> START END STARTFILE ENDFILE
 %token <ival> STARTMAIN ENDMAIN CLASS ENDCLASS
-%token <ival> PUBLIC PRIVATE INCLUDE NAMESPACES
-%token <ival> DATA FUNCTION 
+%token <ival> PUBLIC PRIVATE INCLUDE NAMESPACES CONST 
+%token <ival> DATA FUNCTION COMMA LPAR RPAR
 
-%token <ival> LPAR RPAR COMMA
 %token <str_val> IDENTIFIER STDHEADER USRHEADER QSTRING
-%token <str_val> FUNCNAME
 
 %%
 
@@ -70,9 +68,10 @@ file:
 
 	includes								{
 		  										fprintf(source, "#include \"%s\"\n\n", filename[0]);
+		  										fprintf(header, "\n");
 		  									}
 	contents ENDFILE						{
-												fprintf(header, "#endif");
+												fprintf(header, "#endif\n");
 												fclose(source);
 												fclose(header);
 											}
@@ -90,14 +89,14 @@ includes:
 
 includelist: 
 	includelist COMMA include
-	| include								{ fprintf(header, "\n"); };
+	| include;
 
-include: /* empty */ |
-	STDHEADER								{ fprintf(header, "#include %s\n", $1); }
+include: /* empty */
+	| STDHEADER								{ fprintf(header, "#include %s\n", $1); }
 	| QSTRING								{ fprintf(header, "#include %s\n", $1); };
 
-contents: /* empty */ |
-	contents content
+contents: /* empty */
+	| contents content
 	| content
 	
 content: 
@@ -116,21 +115,29 @@ class:
 												indentlevel += 1;
 												
 											}
-	classmembers ENDCLASS					{
-												strcpy(namespace, "");
+	 domain	classmembers { indentlevel -=1; } 
+	 domain	classmembers { indentlevel -=1; } 
+	 
+	 ENDCLASS								{
 												indentlevel -= 1;
+												indent_level(header);
+												fprintf(header, "};\n");
+												strcpy(namespace, "");
 											};
-classmembers:
-	| PUBLIC classmembers					{
+
+domain: /* empty */
+	| PUBLIC 								{
 												indent_level(header);
-												fprintf(header, "public:");
+												fprintf(header, "public:\n");
 												indentlevel += 1;
 											}
-	| PRIVATE classmembers					{
+	| PRIVATE 								{
 												indent_level(header);
-												fprintf(header, "private:");
+												fprintf(header, "private:\n");
 												indentlevel += 1;
 											}
+
+classmembers: /* empty */
 	| classmembers classmember
 	| classmember;
 
@@ -139,42 +146,53 @@ classmember:
 	| data;
 
 function:
-	FUNCTION QSTRING QSTRING				{ 
+	FUNCTION CONST IDENTIFIER IDENTIFIER	{
 												indent_level(header);
-												indent_level(source);
 
-												buffer = strdup($2);
-												buffer++[strlen(buffer)] = '\0';
+												fprintf(header, "const %s %s(", $3, $4);
+												fprintf(source, "const %s %s%s(", $3, namespace, $4);
+											}
+	LPAR argumentslist RPAR					{ 
+												fprintf(header, ");\n");
 
-												fprintf(header, "%s ", buffer);
-												fprintf(source, "%s %s", buffer, namespace);
+												fprintf(source, ") {\n\n}\n\n");
+											}
+	| FUNCTION IDENTIFIER IDENTIFIER		{
+												indent_level(header);
 
-												buffer--[strlen(buffer)] = '0';
-												free(buffer);
+												fprintf(header, "%s %s(", $2, $3);
+												fprintf(source, "%s %s%s(", $2, namespace, $3);
+											}
+	LPAR argumentslist RPAR					{
+												fprintf(header, ");\n");
+												fprintf(source, ") {\n\n}\n\n");
+											};
 
-												buffer = strdup($3);
-												buffer++[strlen(buffer)] = '\0';
+argumentslist: /* empty */
+	| argumentslist COMMA						{
+												fprintf(header, ", ");
+												fprintf(source, ", ");
+											}
+	argument
+	| argument;
 
-												fprintf(header, "%s;\n", buffer);
-												fprintf(source, "%s {\n\n", buffer);
-												indent_level(source);
-												fprintf(source, "}\n\n");
-
-												buffer--[strlen(buffer)] = '0';
-												free(buffer);
+argument:
+	CONST IDENTIFIER IDENTIFIER				{
+												fprintf(header, "const %s", $2);
+												fprintf(source, "const %s %s", $2, $3);
+											}
+	| IDENTIFIER IDENTIFIER					{
+												fprintf(header, "%s", $1);
+												fprintf(source, "%s %s", $1, $2);
 											};
 
 data: 
-	DATA QSTRING 							{
-												indent_level(header);
-												buffer = strdup($2);
-												/* takes the two end characters off */
-												buffer++[strlen(buffer)] = '\0';
-
+	DATA IDENTIFIER IDENTIFIER				{
 												if (in_class) {
-													fprintf(header, "%s\n", buffer);
+													indent_level(header);
+													fprintf(header, "%s %s;\n", $2, $3);
 												} else { 
-													fprintf(source, "%s\n", buffer);
+													fprintf(source, "%s %s;\n", $2, $3);
 												}
 											};
 
