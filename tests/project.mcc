@@ -21,9 +21,11 @@ PROGRAM
 	FILE list
 		include <fstream>, "node.h"
 		class List
+			public:
 				function void print_list(std::ostream &input)
 				function void add_new(const char *tag, const int cost, const long volume)
 				function bool is_empty()
+			private:
 				data Node *head
 		endclass
 	ENDFILE
